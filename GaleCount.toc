@@ -8,8 +8,8 @@
 ## IconTexture: Interface\Icons\Spell_Nature_Cyclone
 ## X-Category: Combat
 ## X-Website: https://github.com/masterred92/GaleCount
-# X-Curse-Project-ID: (added when the CurseForge project exists)
-# X-Wago-ID: (added when the Wago project exists)
+## X-Curse-Project-ID: 1801369
+## X-Wago-ID: 96d0mX6O
 
 Libs\KennyShared\Compat.lua
 Libs\KennyShared\Core.lua

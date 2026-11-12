@@ -39,6 +39,12 @@ Every class has its own entry (Warrior, Paladin, Hunter, Rogue, Priest, Druid to
 `/gc sound every`: every proc. `/gc sound record`: when a fight beats your best average per proc. `/gc sound off`.
 `/gc soundfile theme|thunder|crack|bolt` picks the sound (and plays it once). `theme` uses your talent tree's sound.
 
+## Download
+- **CurseForge:** https://www.curseforge.com/wow/addons/galecount. Author: [MasterRed92](https://www.curseforge.com/members/masterred92/projects).
+- **Wago Addons:** https://addons.wago.io/addons/galecount.
+- **GitHub:** [Releases](https://github.com/masterred92/GaleCount/releases) · [Issues](https://github.com/masterred92/GaleCount/issues)
+- **More by Kenny:** [GoldPerSpot](https://github.com/masterred92/GoldPerSpot) · [MatTooltip](https://github.com/masterred92/MatTooltip) · [PriceLog](https://github.com/masterred92/PriceLog) · [NeutralFlip](https://github.com/masterred92/NeutralFlip) · [Dwarf Explorer's Bible](https://www.curseforge.com/wow/addons/dwarf-explorers-bible)
+
 ## Commands
 Aliases: `/galecount` and `/gale`.
 `/gc show` / `hide` · `lock` / `unlock` · `resetpos` · `scale 0.5-2` · `size <width> <height>` · `reset` (session) · `test` (preview a proc out of combat) · `sound …` · `soundfile …` · `streak <procs> <seconds>` · `theme` (re-check your talents) · `meter` · `debug` · `report`
