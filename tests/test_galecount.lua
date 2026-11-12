@@ -108,8 +108,8 @@ GC.Settings().sound = "streak"
 -- slash commands
 M.slash("/galecount", "reset")
 check(GC.SessionStats().procs == 0 and GC.SessionStats().wf == 0, "/galecount reset clears the session")
-M.slash("/gale", "size 300 200")
-check(GC.Settings().width == 300 and GC.Settings().height == 200, "/gale size")
+M.slash("/gc", "size 300 200")
+check(GC.Settings().width == 300 and GC.Settings().height == 200, "/gc size")
 M.slash("/galecount", "size 9999 1")
 check(GC.Settings().width == UI.MAX_W and GC.Settings().height == UI.MIN_H, "size is clamped")
 M.slash("/galecount", "scale 5")

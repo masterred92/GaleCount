@@ -17,7 +17,7 @@ WoW: Forever runs on the modern client, which gives addons **no combat log**, an
 - **Procs** are exact. Each Windfury proc is its own game spell, and the game tells addons when you gain it.
 - **Damage** comes from **Blizzard's built-in damage meter**. During combat its numbers are hidden from addon maths, so the box shows them exactly as the game hands them over. Once combat ends they are normal numbers, and Gale Count works out the fight and session totals, share and average.
 - **Biggest single proc is not shown.** The game does not let addons read single hits on this client, so no addon can measure one proc's damage. Average per proc is exact.
-- If the game's meter counts Windfury's extra swings as ordinary Auto Attack (it then has no Windfury line of its own), the box says **"counting procs only"** and shows proc counts without damage. `/galecount meter` lists the meter's lines for your last fight so you can see what the game reports.
+- If the game's meter counts Windfury's extra swings as ordinary Auto Attack (it then has no Windfury line of its own), the box says **"counting procs only"** and shows proc counts without damage. `/gc meter` lists the meter's lines for your last fight so you can see what the game reports.
 
 Turn on the game's meter if the box shows no damage: **Options > Gameplay > Advanced > Damage Meter > Enable Damage Meter**.
 
@@ -35,13 +35,13 @@ The box takes your **class** colours, then the accent colour and sound of the **
 Every class has its own entry (Warrior, Paladin, Hunter, Rogue, Priest, Druid too). With no talent points spent or a tie, you get the class theme. All of it is one small table in `Themes.lua`: change a colour (hex `RRGGBB`) or a sound (a game FileDataID) and `/reload`. Every sound and texture is built into the game; nothing is bundled.
 
 ## Thunder
-`/galecount sound streak` (default): thunder when Windfury procs **2 times within 4 seconds** (`/galecount streak 3 6` makes it 3 procs within 6 seconds).
-`/galecount sound every`: every proc. `/galecount sound record`: when a fight beats your best average per proc. `/galecount sound off`.
-`/galecount soundfile theme|thunder|crack|bolt` picks the sound (and plays it once). `theme` uses your talent tree's sound.
+`/gc sound streak` (default): thunder when Windfury procs **2 times within 4 seconds** (`/gc streak 3 6` makes it 3 procs within 6 seconds).
+`/gc sound every`: every proc. `/gc sound record`: when a fight beats your best average per proc. `/gc sound off`.
+`/gc soundfile theme|thunder|crack|bolt` picks the sound (and plays it once). `theme` uses your talent tree's sound.
 
 ## Commands
-Alias: `/gale`.
-`/galecount show` / `hide` · `lock` / `unlock` · `resetpos` · `scale 0.5-2` · `size <width> <height>` · `reset` (session) · `test` (preview a proc out of combat) · `sound …` · `soundfile …` · `streak <procs> <seconds>` · `theme` (re-check your talents) · `meter` · `debug` · `report`
+Aliases: `/galecount` and `/gale`.
+`/gc show` / `hide` · `lock` / `unlock` · `resetpos` · `scale 0.5-2` · `size <width> <height>` · `reset` (session) · `test` (preview a proc out of combat) · `sound …` · `soundfile …` · `streak <procs> <seconds>` · `theme` (re-check your talents) · `meter` · `debug` · `report`
 
 Move the box by dragging it; resize it with the corner grip. Both stop working while it is locked.
 
@@ -51,12 +51,12 @@ Move the box by dragging it; resize it with the corner grip. Both stop working w
 3. Restart the game or type `/reload`, and check Gale Count is ticked in the AddOns list.
 
 ## In-game test checklist
-1. The box appears below the middle of the screen, can be dragged and resized, and keeps its place and size after `/reload`. `/galecount lock` stops both.
+1. The box appears below the middle of the screen, can be dragged and resized, and keeps its place and size after `/reload`. `/gc lock` stops both.
 2. With Windfury Weapon on, fight a mob: the box flashes `WINDFURY! +2` on each proc and the fight count goes up.
 3. In a group with another Shaman's Windfury Totem: `TOTEM WINDFURY! +1` appears on totem procs.
 4. Two procs within 4 seconds play one thunder.
-5. After the fight: Windfury damage, share and average per proc appear, or "counting procs only". `/galecount meter` lists the meter lines.
-6. Spend talent points mostly in Elemental, Enhancement or Restoration: `/galecount theme` names that tree and the box's accent changes.
+5. After the fight: Windfury damage, share and average per proc appear, or "counting procs only". `/gc meter` lists the meter lines.
+6. Spend talent points mostly in Elemental, Enhancement or Restoration: `/gc theme` names that tree and the box's accent changes.
 7. **Reset session** sets the session line back to 0.
 8. No Lua errors and no "action blocked" messages during combat.
 

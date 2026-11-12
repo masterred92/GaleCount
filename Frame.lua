@@ -228,13 +228,14 @@ UI.MIN_W, UI.MIN_H, UI.MAX_W, UI.MAX_H = MIN_W, MIN_H, MAX_W, MAX_H
 
 -- ---------- slash command ----------
 local function help()
-  Core.Print("/galecount show | hide | lock | unlock | resetpos | scale 0.5-2 | size <w> <h> | reset | test")
-  Core.Print("/galecount sound streak|every|record|off  |  soundfile theme|thunder|crack|bolt  |  streak <procs> <seconds>")
-  Core.Print("/galecount meter (last fight's damage-meter rows) | theme | debug | report")
+  Core.Print("/gc show | hide | lock | unlock | resetpos | scale 0.5-2 | size <w> <h> | reset | test")
+  Core.Print("/gc sound streak|every|record|off  |  soundfile theme|thunder|crack|bolt  |  streak <procs> <seconds>")
+  Core.Print("/gc meter (last fight's damage-meter rows) | theme | debug | report")
 end
 
 SLASH_KENNYGALECOUNT1 = "/galecount"
 SLASH_KENNYGALECOUNT2 = "/gale"
+SLASH_KENNYGALECOUNT3 = "/gc"
 SlashCmdList.KENNYGALECOUNT = function(msg)
   if not (db and frame) then return end
   local cmd, a, b = (msg or ""):lower():match("^(%S*)%s*(%S*)%s*(%S*)")

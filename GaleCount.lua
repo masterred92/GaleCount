@@ -430,5 +430,5 @@ Core.Setup({ cmd = "/galecount",
   optional = { "C_DamageMeter.IsDamageMeterAvailable", "AbbreviateNumbers", "C_ClassTalents.GetActiveConfigID",
     "C_Traits.GetGroupDisplayInfoByTreeID", "C_Traits.GetGroupCurrencyInfo" },
   db = function() return db end,
-  firstRun = { L["Windfury tracker ready. Drag the box to move it; /galecount for options."] },
+  firstRun = { L["Windfury tracker ready. Drag the box to move it; /gc for options."] },
   debugLines = function() return GC.StateLines() end })
