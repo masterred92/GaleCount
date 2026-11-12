@@ -2,7 +2,7 @@
 ## Title: Gale Count
 ## Notes: Windfury tracker for Shamans: counts Windfury procs live, then shows Windfury's damage, share and average per proc from the game's own damage meter. Blizzard sounds and textures only.
 ## Author: Kenny
-## Version: 1.0.0
+## Version: 1.0.1
 ## SavedVariables: KennyGaleCountDB
 ## X-License: MIT
 ## IconTexture: Interface\Icons\Spell_Nature_Cyclone

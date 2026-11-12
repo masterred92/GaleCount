@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.1
+- `/gc` clashed with the game's guild chat command; use `/gale` (or `/galecount` as a backup). Help text, first-run tip and README updated.
+
 ## 1.0.0
 - First release for WoW: Forever (Interface 16001, client 1.60.1).
 - Counts every Windfury proc as it happens: Windfury Weapon (all 4 ranks, +2 swings) and Windfury Totem (all 3 ranks, +1 swing, including a totem from another Shaman).

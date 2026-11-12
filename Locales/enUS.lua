@@ -21,7 +21,7 @@ ns.Core.AddLocale("enUS", {
   ["Windfury damage after combat"] = true,
   ["Windfury share"] = true,
   ["Windfury share (live)"] = true,
-  ["Windfury tracker ready. Drag the box to move it; /gc for options."] = true,
+  ["Windfury tracker ready. Drag the box to move it; /gale for options."] = true,
   ["You"] = true,
   ["class default"] = true,
   ["client"] = true,

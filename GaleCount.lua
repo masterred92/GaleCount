@@ -424,11 +424,11 @@ ev:SetScript("OnEvent", function(_, event, ...)
   if h and db then Core.SafeCall(event, h, ...) end
 end)
 
-Core.Setup({ cmd = "/galecount",
+Core.Setup({ cmd = "/gale",
   required = { "C_DamageMeter.GetCombatSessionSourceFromType", "C_DamageMeter.GetAvailableCombatSessions",
     "C_DamageMeter.GetCombatSessionSourceFromID", "PlaySoundFile", "C_Timer.After", "UnitGUID" },
   optional = { "C_DamageMeter.IsDamageMeterAvailable", "AbbreviateNumbers", "C_ClassTalents.GetActiveConfigID",
     "C_Traits.GetGroupDisplayInfoByTreeID", "C_Traits.GetGroupCurrencyInfo" },
   db = function() return db end,
-  firstRun = { L["Windfury tracker ready. Drag the box to move it; /gc for options."] },
+  firstRun = { L["Windfury tracker ready. Drag the box to move it; /gale for options."] },
   debugLines = function() return GC.StateLines() end })
