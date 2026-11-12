@@ -1,0 +1,40 @@
+# Runs the offline checks on every push and pull request. Never packages or uploads anything.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Blizzard UI source for the Forever client (API check)
+        uses: actions/checkout@v7
+        with:
+          repository: Gethe/wow-ui-source
+          ref: 9dc84f0d3bbae1768ac3405b3716000bd93eda06   # 1.60.1 (70862)
+          path: wow-ui
+          sparse-checkout: Interface
+          persist-credentials: false
+      - name: Shared library (drift check)
+        uses: actions/checkout@v7
+        with:
+          repository: masterred92/wow-forever-addons
+          path: index
+          persist-credentials: false
+      - uses: leafo/gh-actions-lua@v13.1.0
+        with:
+          luaVersion: "5.1.5"
+      - uses: leafo/gh-actions-luarocks@v6.1.1
+      - name: Install luacheck and ripgrep
+        run: luarocks install luacheck && sudo apt-get install -y ripgrep
+      - name: Shared library in sync
+        run: sh tools/check_lib.sh index
+      - name: Syntax, lint, locale, mock-client tests, Blizzard docs and API checks
+        run: sh tests/run.sh wow-ui

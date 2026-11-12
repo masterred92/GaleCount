@@ -1,0 +1,12 @@
+# BigWigsMods/packager config. Publishing is off until the Wago / CurseForge projects exist (see release.yml).
+package-as: GaleCount
+
+ignore:
+  - tests
+  - tools
+  - .luacheckrc
+  - media
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
