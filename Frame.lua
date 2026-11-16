@@ -12,6 +12,8 @@ local frame, db, settings, ticker
 local ICON = "Interface\\Icons\\Spell_Nature_Cyclone"
 local BAR = "Interface\\TargetingFrame\\UI-StatusBar"
 local GRIP = "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up"
+local LOCKED, UNLOCKED = "Interface\\Buttons\\LockButton-Locked-Up", "Interface\\Buttons\\LockButton-Unlocked-Up" -- 525906, 525908
+local GOLD = "|cffffd100" -- labels in the game's own gold, values in white
 local MIN_W, MIN_H, MAX_W, MAX_H = 180, 120, 480, 300
 
 local function fs(parent, font)
@@ -19,6 +21,10 @@ local function fs(parent, font)
   f:SetJustifyH("LEFT")
   return f
 end
+
+-- "Fight: " in gold, so the numbers after it are easy to pick out
+local function label(text) return GOLD .. text .. ":|r " end
+local function procs(n) return n == 1 and L["proc"] or L["procs"] end
 
 function UI.Place()
   local p = db.point or { "CENTER", 0, -180 }
@@ -31,12 +37,20 @@ function UI.ApplyTheme(th)
   local fr, fg, fb = unpack(th.frame)
   local ar, ag, ab = unpack(th.accent)
   frame:SetBackdropBorderColor(fr, fg, fb, 1)
-  frame.title:SetTextColor(fr, fg, fb)
+  -- the title is the class colour lifted 40% toward white, so dark colours (Shaman blue) stay readable on navy
+  frame.title:SetTextColor(fr + (1 - fr) * 0.4, fg + (1 - fg) * 0.4, fb + (1 - fb) * 0.4)
   frame.bar:SetStatusBarColor(ar, ag, ab)
   frame.flash:SetColorTexture(ar, ag, ab, 1)
   frame.proc:SetTextColor(ar, ag, ab)
   frame.spark:SetColorTexture(ar, ag, ab, 0.9)
   frame.tree:SetText(th.tree or "")
+end
+
+-- Padlock icon and resize grip follow the lock setting.
+function UI.UpdateLock()
+  if not frame then return end
+  frame.lock.icon:SetTexture(settings.locked and LOCKED or UNLOCKED)
+  frame.grip:SetShown(not settings.locked)
 end
 
 function UI.ApplyLayout()
@@ -72,9 +86,31 @@ function UI.Build(database, s)
   frame.title = fs(frame, "GameFontNormal")
   frame.title:SetPoint("LEFT", icon, "RIGHT", 5, 0)
   frame.title:SetText("Gale Count")
+  -- padlock, top right: click to lock or unlock the box (same as /gale lock and /gale unlock)
+  local lock = CreateFrame("Button", nil, frame)
+  lock:SetSize(16, 16)
+  lock:SetPoint("TOPRIGHT", -7, -8)
+  lock.icon = lock:CreateTexture(nil, "ARTWORK")
+  lock.icon:SetAllPoints()
+  lock.icon:SetTexCoord(6 / 32, 25 / 32, 7 / 32, 25 / 32) -- just the padlock, not the empty edge of the texture
+  lock:SetScript("OnClick", function()
+    settings.locked = not settings.locked
+    UI.UpdateLock()
+    Core.Print(settings.locked and L["frame locked."] or L["frame unlocked."])
+  end)
+  lock:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
+    GameTooltip:SetText(settings.locked and L["Box locked"] or L["Box unlocked"])
+    GameTooltip:AddLine(settings.locked and L["Click to unlock it."] or L["Drag the box to move it. Click to lock it."], 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  lock:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  frame.lock = lock
   frame.tree = fs(frame, "GameFontDisableSmall")
-  frame.tree:SetPoint("TOPRIGHT", -9, -11)
+  frame.tree:SetPoint("RIGHT", lock, "LEFT", -2, 0)
   frame.tree:SetJustifyH("RIGHT")
+  frame.title:SetPoint("RIGHT", frame.tree, "LEFT", -4, 0)
+  frame.title:SetWordWrap(false)
   -- a thin lightning line under the title
   frame.spark = frame:CreateTexture(nil, "ARTWORK")
   frame.spark:SetHeight(1)
@@ -85,7 +121,7 @@ function UI.Build(database, s)
   frame.proc:SetPoint("TOPLEFT", 10, -33)
   frame.proc:SetPoint("RIGHT", -10, 0)
   frame.proc:SetWordWrap(false)
-  frame.lines = fs(frame)
+  frame.lines = fs(frame, "GameFontHighlight") -- 12 pt (was 10 pt)
   frame.lines:SetPoint("TOPLEFT", frame.proc, "BOTTOMLEFT", 0, -4)
   frame.lines:SetPoint("RIGHT", -10, 0)
   frame.lines:SetJustifyV("TOP")
@@ -93,9 +129,10 @@ function UI.Build(database, s)
 
   frame.bar = CreateFrame("StatusBar", nil, frame)
   frame.bar:SetStatusBarTexture(BAR)
-  frame.bar:SetPoint("BOTTOMLEFT", 10, 30)
-  frame.bar:SetPoint("BOTTOMRIGHT", -10, 30)
-  frame.bar:SetHeight(10)
+  frame.bar:SetPoint("BOTTOMLEFT", 10, 29)
+  frame.bar:SetPoint("BOTTOMRIGHT", -10, 29)
+  frame.bar:SetHeight(12) -- was 10
+  frame.lines:SetPoint("BOTTOM", frame.bar, "TOP", 0, 1) -- extra lines are cut off instead of running into the bar
   frame.bar:SetMinMaxValues(0, 1)
   frame.bar:SetValue(0)
   local barBg = frame.bar:CreateTexture(nil, "BACKGROUND")
@@ -109,6 +146,7 @@ function UI.Build(database, s)
   reset:SetPoint("BOTTOMLEFT", 8, 7)
   reset:SetText(L["Reset session"])
   reset:SetScript("OnClick", function() GC.ResetSession(); Core.Print(L["session reset."]) end)
+  frame.reset = reset
 
   local grip = CreateFrame("Button", nil, frame)
   grip:SetSize(14, 14)
@@ -132,6 +170,7 @@ function UI.Build(database, s)
   UI.ApplyLayout()
   UI.Place()
   UI.ApplyTheme(GC.theme)
+  UI.UpdateLock()
   frame:SetShown(settings.shown)
   UI.Refresh()
   return frame
@@ -156,6 +195,10 @@ function UI.OnProc(p)
 end
 
 function UI.OnCombat(inCombat)
+  if frame then
+    frame.reset:SetShown(not inCombat) -- no Reset button in combat, so a stray click can't wipe the session
+    if inCombat then frame.proc:SetText(L["Waiting for Windfury..."]) end -- a fresh headline for each fight
+  end
   if inCombat and not ticker then
     ticker = C_Timer.NewTicker(0.5, function() Core.SafeCall("live", UI.RenderLive) end)
   elseif not inCombat and ticker then
@@ -164,23 +207,31 @@ function UI.OnCombat(inCombat)
   UI.Refresh()
 end
 
--- Plain-number view (out of combat): last fight + session.
+-- Plain-number view (out of combat): last fight + session, one short line each. Labels gold, numbers white.
 function UI.Lines()
   local f, s = GC.lastFight, GC.SessionStats() or {}
-  local out = {}
-  if f then
-    if f.wf then
-      out[#out + 1] = ("%s: %d %s, %s %s (%s)"):format(L["Fight"], f.procs, L["procs"], GC.Short(f.wf), L["damage"], GC.Pct(f.share))
-      out[#out + 1] = ("%s: %s%s"):format(L["Avg per proc"], f.avg and GC.Short(f.avg) or "-", f.record and ("  |cffffd200" .. L["new best!"] .. "|r") or "")
-    else
-      out[#out + 1] = ("%s: %d %s (+%d %s)"):format(L["Fight"], f.procs, L["procs"], f.extra, L["swings"])
-    end
-  else
-    out[#out + 1] = ("%s: %d %s"):format(L["Fight"], GC.fight.procs, L["procs"])
+  local countOnly = db and db.meterSplits == false
+  if not f and (s.procs or 0) == 0 and (s.fights or 0) == 0 and GC.fight.procs == 0 then
+    return { L["No fights yet."], "|cffaaaaaa" .. L["Fight with Windfury on and the procs show up here."] .. "|r" }
   end
-  out[#out + 1] = ("%s: %d %s, %s %s (%s)"):format(L["Session"], s.procs or 0, L["procs"], GC.Short(s.wf or 0), L["damage"], GC.Pct(s.share))
-  out[#out + 1] = ("%s: %s   %s: %s"):format(L["Avg"], s.avg and GC.Short(s.avg) or "-", L["Best avg"], (s.bestAvg or 0) > 0 and GC.Short(s.bestAvg) or "-")
-  if db and db.meterSplits == false then out[#out + 1] = "|cffaaaaaa" .. L["Game's meter has no separate Windfury row: counting procs only."] .. "|r" end
+  local out = {}
+  if f and f.wf then
+    out[#out + 1] = label(L["Fight"]) .. ("%d %s · %s %s · %s"):format(f.procs, procs(f.procs), GC.Short(f.wf), L["damage"], GC.Pct(f.share))
+  elseif f then
+    out[#out + 1] = label(L["Fight"]) .. ("%d %s · +%d %s"):format(f.procs, procs(f.procs), f.extra, f.extra == 1 and L["swing"] or L["swings"])
+  else
+    out[#out + 1] = label(L["Fight"]) .. ("%d %s"):format(GC.fight.procs, procs(GC.fight.procs))
+  end
+  if countOnly then
+    out[#out + 1] = label(L["Session"]) .. ("%d %s"):format(s.procs or 0, procs(s.procs or 0))
+  else
+    out[#out + 1] = label(L["Session"]) .. ("%d %s · %s · %s"):format(s.procs or 0, procs(s.procs or 0), GC.Short(s.wf or 0), GC.Pct(s.share))
+    -- last fight's average, the session's, then the best; a record shows "new best!" (the fight's average is the best)
+    local tail = (f and f.record) and ("  |cffffd200" .. L["new best!"] .. "|r")
+      or (" · %s %s"):format(L["best"], (s.bestAvg or 0) > 0 and GC.Short(s.bestAvg) or "-")
+    out[#out + 1] = label(L["Per proc"]) .. ("%s · %s %s"):format(f and f.avg and GC.Short(f.avg) or "-", L["avg"], s.avg and GC.Short(s.avg) or "-") .. tail
+  end
+  if countOnly then out[#out + 1] = "|cffaaaaaa" .. L["Game's meter has no separate Windfury row: counting procs only."] .. "|r" end
   return out
 end
 
@@ -209,15 +260,15 @@ function UI.RenderLive()
       if not C.IsSecret(id) and GC.PROCS[id] then wfRows = wfRows + 1; wfAmount = sp.totalAmount end
     end
   end
-  local head = ("%s: %d %s (+%d %s)"):format(L["Fight"], f.procs, L["procs"], f.extra, L["swings"])
+  local head = label(L["Fight"]) .. ("%d %s · +%d %s"):format(f.procs, procs(f.procs), f.extra, f.extra == 1 and L["swing"] or L["swings"])
   if total ~= nil and AbbreviateNumbers then
     if wfRows == 1 then
-      frame.lines:SetFormattedText("%s\n%s: %s   %s: %s", head, L["Windfury"], AbbreviateNumbers(wfAmount), L["You"], AbbreviateNumbers(total))
+      frame.lines:SetFormattedText("%s\n%s%s   %s%s", head, label(L["Windfury"]), AbbreviateNumbers(wfAmount), label(L["You"]), AbbreviateNumbers(total))
       frame.bar:SetMinMaxValues(0, total)
       frame.bar:SetValue(wfAmount)
       frame.barText:SetText(L["Windfury share (live)"])
     else
-      frame.lines:SetFormattedText("%s\n%s: %s\n%s", head, L["You"], AbbreviateNumbers(total), L["Windfury damage after combat"])
+      frame.lines:SetFormattedText("%s\n%s%s\n|cffaaaaaa%s|r", head, label(L["You"]), AbbreviateNumbers(total), L["Windfury damage after combat"])
     end
   else
     frame.lines:SetText(head)
@@ -241,8 +292,8 @@ SlashCmdList.KENNYGALECOUNT = function(msg)
   local cmd, a, b = (msg or ""):lower():match("^(%S*)%s*(%S*)%s*(%S*)")
   if cmd == "show" then settings.shown = true; frame:Show(); UI.Refresh()
   elseif cmd == "hide" then settings.shown = false; frame:Hide()
-  elseif cmd == "lock" then settings.locked = true; Core.Print(L["frame locked."])
-  elseif cmd == "unlock" then settings.locked = false; Core.Print(L["frame unlocked."])
+  elseif cmd == "lock" then settings.locked = true; UI.UpdateLock(); Core.Print(L["frame locked."])
+  elseif cmd == "unlock" then settings.locked = false; UI.UpdateLock(); Core.Print(L["frame unlocked."])
   elseif cmd == "resetpos" then
     db.point = nil; settings.width, settings.height, settings.scale = GC.DEFAULTS.width, GC.DEFAULTS.height, 1
     UI.ApplyLayout(); UI.Place(); Core.Print(L["frame moved back to its default spot and size."])
