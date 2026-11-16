@@ -2,7 +2,10 @@
 --
 -- How it knows a Windfury proc happened: every Windfury proc on this client is its own spell (checked in the
 -- client's SpellEffect table for build 1.60.1.70862): "apply aura: +attack power" plus "add extra attacks".
--- The player's own UNIT_SPELLCAST_SUCCEEDED names that spell; UNIT_AURA is a second, deduplicated source.
+-- Its +attack power aura lands on the player, so each player UNIT_AURA asks C_UnitAuras.GetPlayerAuraBySpellID for
+-- the proc spells: a new aura instance is a proc. That read stays plain in combat unless the spell itself is flagged
+-- secret, while the UNIT_AURA payload is secret for the whole fight. The player's UNIT_SPELLCAST_SUCCEEDED for the
+-- proc spell is a second, deduplicated source.
 --
 -- Where the damage comes from: addons on this client get no combat log and every hit amount is a secret value,
 -- so Gale Count never guesses a number. It reads Blizzard's own damage meter (C_DamageMeter). In combat those
@@ -121,15 +124,43 @@ function GC.OnSpellcast(unit, _, spellID)
   GC.OnProc(spellID)
 end
 
--- UNIT_AURA: added auras can be secret in combat on this client; any read that fails is skipped quietly.
-function GC.OnAura(unit, updateInfo)
-  if unit ~= "player" or type(updateInfo) ~= "table" or C.IsSecret(updateInfo) then return end
-  local ok, added = pcall(function() return updateInfo.addedAuras end)
-  if not ok or type(added) ~= "table" or C.IsSecret(added) then return end
-  for _, aura in ipairs(added) do
-    local ok2, id = pcall(function() return aura.spellId end)
-    if ok2 then GC.OnProc(id) end
+-- Proc auras on the player right now: spellID -> aura instance ID (or true when the ID can't be read).
+local procAuras = {}
+
+-- Ask the client for each proc spell's aura on the player. A proc is an aura that wasn't there before, or a new
+-- instance of one that was. A secret or failed read leaves that spell's state alone.
+function GC.ScanAuras(t)
+  if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then return end
+  for spellID in pairs(GC.PROCS) do
+    local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
+    if ok and not C.IsSecret(aura) then
+      if type(aura) == "table" then
+        local ok2, inst = pcall(function() return aura.auraInstanceID end)
+        inst = ok2 and C.SafeNumber(inst) or true
+        local was = procAuras[spellID]
+        procAuras[spellID] = inst
+        if not was or (inst ~= true and was ~= inst) then GC.OnProc(spellID, t) end
+      else
+        procAuras[spellID] = nil
+      end
+    end
   end
+end
+
+-- UNIT_AURA: the payload is secret in combat on this client, so it only helps out of combat; the per-spell read
+-- above always runs. Any read that fails is skipped quietly.
+function GC.OnAura(unit, updateInfo)
+  if unit ~= "player" then return end
+  if type(updateInfo) == "table" and not C.IsSecret(updateInfo) then
+    local ok, added = pcall(function() return updateInfo.addedAuras end)
+    if ok and type(added) == "table" and not C.IsSecret(added) then
+      for _, aura in ipairs(added) do
+        local ok2, id = pcall(function() return aura.spellId end)
+        if ok2 then GC.OnProc(id) end
+      end
+    end
+  end
+  GC.ScanAuras()
 end
 
 -- ---------- Blizzard's damage meter ----------
@@ -427,7 +458,7 @@ end)
 Core.Setup({ cmd = "/gale",
   required = { "C_DamageMeter.GetCombatSessionSourceFromType", "C_DamageMeter.GetAvailableCombatSessions",
     "C_DamageMeter.GetCombatSessionSourceFromID", "PlaySoundFile", "C_Timer.After", "UnitGUID" },
-  optional = { "C_DamageMeter.IsDamageMeterAvailable", "AbbreviateNumbers", "C_ClassTalents.GetActiveConfigID",
+  optional = { "C_UnitAuras.GetPlayerAuraBySpellID", "C_DamageMeter.IsDamageMeterAvailable", "AbbreviateNumbers", "C_ClassTalents.GetActiveConfigID",
     "C_Traits.GetGroupDisplayInfoByTreeID", "C_Traits.GetGroupCurrencyInfo" },
   db = function() return db end,
   firstRun = { L["Windfury tracker ready. Drag the box to move it; /gale for options."] },
