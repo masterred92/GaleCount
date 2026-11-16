@@ -2,10 +2,7 @@
 --
 -- How it knows a Windfury proc happened: every Windfury proc on this client is its own spell (checked in the
 -- client's SpellEffect table for build 1.60.1.70862): "apply aura: +attack power" plus "add extra attacks".
--- Its +attack power aura lands on the player, so each player UNIT_AURA asks C_UnitAuras.GetPlayerAuraBySpellID for
--- the proc spells: a new aura instance is a proc. That read stays plain in combat unless the spell itself is flagged
--- secret, while the UNIT_AURA payload is secret for the whole fight. The player's UNIT_SPELLCAST_SUCCEEDED for the
--- proc spell is a second, deduplicated source.
+-- How those spells can be seen in combat depends on the client's secret-value rules; see "proc detection" below.
 --
 -- Where the damage comes from: addons on this client get no combat log and every hit amount is a secret value,
 -- so Gale Count never guesses a number. It reads Blizzard's own damage meter (C_DamageMeter). In combat those
@@ -20,7 +17,6 @@ KennyGaleCount = GC
 ns.GC = GC
 
 local SCHEMA = 1
-local DEDUPE = 0.25 -- seconds: the cast event and the aura event for one proc arrive together
 
 -- Proc spell -> what it is. extra = extra swings granted. Source: SpellName + SpellEffect (effect 19 =
 -- Add Extra Attacks, aura 99 = Mod Melee Attack Power), wago.tools db2, build 1.60.1.70862.
@@ -68,16 +64,57 @@ function GC.Settings() return settings end
 function GC.Session() return db and db.session end
 
 -- ---------- proc detection ----------
-local lastSeen = {} -- spellID -> time, for the cast/aura dedupe
+-- WoW: Forever hides aura data from addons in combat (UNIT_AURA payload: SecretWhenAurasRestricted;
+-- C_UnitAuras.GetPlayerAuraBySpellID: SecretWhenUnitAuraRestricted + RequiresNonSecretAura, so a hidden aura
+-- returns nothing). Only a spell the client flags "never secret" (C_Secrets.GetSpellAuraSecrecy == 0) stays
+-- readable. Which proc spells have that flag is only known in game, so the way procs are counted is picked at
+-- runtime and checked again at login, at the start of every fight and on /gale debug:
+--   "aura": at least one proc spell's aura is readable. Those spells are counted from their aura: a new aura
+--           instance, more applications (charges) or a later expirationTime is a proc (covers a re-proc while
+--           the buff is still up).
+--   "cast": the client has sent the player's UNIT_SPELLCAST_SUCCEEDED for a proc spell with a plain spell ID.
+--           Spells not counted from their aura are counted from that event.
+--   "none": neither works. The window says procs can't be counted here; Windfury damage still comes from the
+--           damage meter after the fight, if the meter lists Windfury as its own spell.
+-- Each spell has exactly one source (aura if readable, else cast), so one proc is never counted twice and no
+-- time-based dedupe is needed: two real procs of the same rank a moment apart both count.
+GC.secrecy = {}       -- spellID -> 0 never / 1 always / 2 contextually secret, nil = unknown
+GC.auraReadable = {}  -- spellID -> true when its aura can be read in combat
+GC.restricted = nil   -- C_Secrets.HasSecretRestrictions(): true / false / nil (unknown)
+GC.mode = "none"
+local auraState = {}  -- spellID -> { inst, apps, exp } of the aura last seen, nil = not on the player
 
--- Count one proc. Returns true when it counted (false for unknown spells and duplicates).
+local function call(fn, ...)
+  if type(fn) ~= "function" then return nil end
+  local ok, v = pcall(fn, ...)
+  if not ok or C.IsSecret(v) then return nil end
+  return v
+end
+
+-- Work out which proc spells can be read from their aura, then the mode. Safe on any client.
+function GC.EvaluateMode()
+  local S = C_Secrets
+  GC.restricted = S and call(S.HasSecretRestrictions)
+  -- a client with neither C_Secrets nor issecretvalue has no secret values at all
+  if GC.restricted == nil and type(S) ~= "table" and issecretvalue == nil then GC.restricted = false end
+  local any = false
+  for id in pairs(GC.PROCS) do
+    local level = S and call(S.GetSpellAuraSecrecy, id)
+    GC.secrecy[id] = type(level) == "number" and level or nil
+    GC.auraReadable[id] = (GC.restricted == false or GC.secrecy[id] == 0) and C_UnitAuras ~= nil
+      and type(C_UnitAuras.GetPlayerAuraBySpellID) == "function" or nil
+    if GC.auraReadable[id] then any = true end
+  end
+  GC.mode = any and "aura" or (db and db.castSeen and "cast") or "none"
+  return GC.mode
+end
+
+-- Count one proc. Returns true when it counted (false for unknown or secret spell IDs).
 function GC.OnProc(spellID, t)
   if C.IsSecret(spellID) then return false end
   local info = GC.PROCS[spellID]
   if not info then return false end
   t = t or now()
-  if lastSeen[spellID] and t - lastSeen[spellID] < DEDUPE then return false end
-  lastSeen[spellID] = t
   local f = GC.fight
   f.procs = f.procs + 1
   f[info.kind] = f[info.kind] + 1
@@ -119,48 +156,76 @@ function GC.Thunder()
   return ok and willPlay ~= false
 end
 
+-- Mode "cast": the player's own cast event for a proc spell whose aura can't be read.
+GC.castsSeen = 0
 function GC.OnSpellcast(unit, _, spellID)
-  if unit ~= "player" then return end
+  if unit ~= "player" or C.IsSecret(spellID) or not GC.PROCS[spellID] then return end
+  GC.castsSeen = GC.castsSeen + 1
+  if db and not db.castSeen then db.castSeen = true end
+  if GC.mode == "none" then GC.mode = "cast"; if ns.UI then ns.UI.Refresh() end end
+  if GC.auraReadable[spellID] then return end -- counted from its aura
   GC.OnProc(spellID)
 end
 
--- Proc auras on the player right now: spellID -> aura instance ID (or true when the ID can't be read).
-local procAuras = {}
+local function field(aura, key)
+  local ok, v = pcall(function() return aura[key] end)
+  return ok and C.SafeNumber(v) or nil
+end
 
--- Ask the client for each proc spell's aura on the player. A proc is an aura that wasn't there before, or a new
--- instance of one that was. A secret or failed read leaves that spell's state alone.
+-- Mode "aura": read each readable proc spell's aura. A read that fails or comes back secret changes nothing.
 function GC.ScanAuras(t)
   if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then return end
   for spellID in pairs(GC.PROCS) do
-    local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
-    if ok and not C.IsSecret(aura) then
-      if type(aura) == "table" then
-        local ok2, inst = pcall(function() return aura.auraInstanceID end)
-        inst = ok2 and C.SafeNumber(inst) or true
-        local was = procAuras[spellID]
-        procAuras[spellID] = inst
-        if not was or (inst ~= true and was ~= inst) then GC.OnProc(spellID, t) end
-      else
-        procAuras[spellID] = nil
+    if GC.auraReadable[spellID] then
+      local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
+      if ok and not C.IsSecret(aura) then
+        if type(aura) == "table" then
+          local cur = { inst = field(aura, "auraInstanceID"), apps = field(aura, "applications"),
+            exp = field(aura, "expirationTime") }
+          local was = auraState[spellID]
+          auraState[spellID] = cur
+          if not was or (cur.inst and was.inst and cur.inst ~= was.inst)
+            or (cur.apps and was.apps and cur.apps > was.apps)
+            or (cur.exp and was.exp and cur.exp > was.exp) then
+            GC.OnProc(spellID, t)
+          end
+        else
+          auraState[spellID] = nil
+        end
       end
     end
   end
 end
 
--- UNIT_AURA: the payload is secret in combat on this client, so it only helps out of combat; the per-spell read
--- above always runs. Any read that fails is skipped quietly.
-function GC.OnAura(unit, updateInfo)
+function GC.OnAura(unit)
   if unit ~= "player" then return end
-  if type(updateInfo) == "table" and not C.IsSecret(updateInfo) then
-    local ok, added = pcall(function() return updateInfo.addedAuras end)
-    if ok and type(added) == "table" and not C.IsSecret(added) then
-      for _, aura in ipairs(added) do
-        local ok2, id = pcall(function() return aura.spellId end)
-        if ok2 then GC.OnProc(id) end
-      end
-    end
-  end
   GC.ScanAuras()
+end
+
+-- Diagnostic lines for /gale debug: restriction state, each proc spell's secrecy and aura, the mode.
+function GC.DetectionLines()
+  GC.EvaluateMode()
+  local S = C_Secrets
+  local out = {
+    ("detection mode: %s  (aura = buff read, cast = cast event, none = can't count procs)"):format(GC.mode),
+    ("secret restrictions: %s, auras secret now: %s, in combat: %s"):format(tostring(GC.restricted),
+      tostring(S and call(S.ShouldAurasBeSecret)), tostring(C.InCombat())),
+    ("proc cast events seen: %d this session, ever: %s"):format(GC.castsSeen, tostring(db and db.castSeen or false)),
+  }
+  local ids = {}
+  for id in pairs(GC.PROCS) do ids[#ids + 1] = id end
+  table.sort(ids)
+  for _, id in ipairs(ids) do
+    local aura = "-"
+    if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+      local ok, a = pcall(C_UnitAuras.GetPlayerAuraBySpellID, id)
+      aura = not ok and "error" or C.IsSecret(a) and "secret" or a ~= nil and "up"
+        or (GC.auraReadable[id] and "not up" or "no data (hidden or not up)")
+    end
+    out[#out + 1] = ("  %d %s %d: secrecy %s (0 = never secret), aura %s"):format(id,
+      GC.PROCS[id].kind, GC.PROCS[id].rank, tostring(GC.secrecy[id]), aura)
+  end
+  return out
 end
 
 -- ---------- Blizzard's damage meter ----------
@@ -405,9 +470,10 @@ end
 
 function GC.StateLines()
   local s = GC.SessionStats() or {}
+  local lines = GC.DetectionLines()
   local avail, why = GC.MeterAvailable()
   local f = GC.lastFight
-  return {
+  local out = {
     "settings: sound=" .. tostring(settings and settings.sound) .. " file=" .. tostring(settings and settings.soundFile)
       .. " streak=" .. tostring(settings and settings.streakProcs) .. "/" .. tostring(settings and settings.streakSeconds) .. "s",
     "damage meter available: " .. tostring(avail) .. (why and why ~= "" and (" (" .. tostring(why) .. ")") or ""),
@@ -416,6 +482,8 @@ function GC.StateLines()
     ("session: %s procs, %s fights, wf %s of %s"):format(tostring(s.procs), tostring(s.fights), GC.Short(s.wf), GC.Short(s.total)),
     "last fight: " .. (f and ("%d procs, total %s, wf %s"):format(f.procs, GC.Short(f.total), f.wf and GC.Short(f.wf) or "n/a") or "none"),
   }
+  for _, l in ipairs(lines) do out[#out + 1] = l end
+  return out
 end
 
 -- ---------- events ----------
@@ -428,14 +496,14 @@ ev:RegisterUnitEvent("UNIT_AURA", "player")
 for _, e in ipairs({ "PLAYER_LOGIN", "TRAIT_CONFIG_UPDATED", "ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_TALENT_UPDATE" }) do ev:RegisterEvent(e) end
 
 local handlers = {
-  PLAYER_REGEN_DISABLED = function() GC.StartFight() end,
+  PLAYER_REGEN_DISABLED = function() GC.EvaluateMode(); GC.StartFight() end,
   PLAYER_REGEN_ENABLED = function()
     GC.EndFight()
     if GC.themeStale then GC.themeStale = false; GC.UpdateTheme() end
   end,
   UNIT_SPELLCAST_SUCCEEDED = GC.OnSpellcast,
   UNIT_AURA = GC.OnAura,
-  PLAYER_LOGIN = function() GC.UpdateTheme() end,
+  PLAYER_LOGIN = function() GC.EvaluateMode(); GC.UpdateTheme() end,
 }
 -- Talent changes re-pick the theme; in combat the repick waits for the fight to end.
 local function talentsChanged() if C.InCombat() then GC.themeStale = true else GC.UpdateTheme() end end
@@ -458,7 +526,8 @@ end)
 Core.Setup({ cmd = "/gale",
   required = { "C_DamageMeter.GetCombatSessionSourceFromType", "C_DamageMeter.GetAvailableCombatSessions",
     "C_DamageMeter.GetCombatSessionSourceFromID", "PlaySoundFile", "C_Timer.After", "UnitGUID" },
-  optional = { "C_UnitAuras.GetPlayerAuraBySpellID", "C_DamageMeter.IsDamageMeterAvailable", "AbbreviateNumbers", "C_ClassTalents.GetActiveConfigID",
+  optional = { "C_UnitAuras.GetPlayerAuraBySpellID", "C_Secrets.HasSecretRestrictions", "C_Secrets.GetSpellAuraSecrecy",
+    "C_Secrets.ShouldAurasBeSecret", "C_DamageMeter.IsDamageMeterAvailable", "AbbreviateNumbers", "C_ClassTalents.GetActiveConfigID",
     "C_Traits.GetGroupDisplayInfoByTreeID", "C_Traits.GetGroupCurrencyInfo" },
   db = function() return db end,
   firstRun = { L["Windfury tracker ready. Drag the box to move it; /gale for options."] },

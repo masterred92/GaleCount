@@ -19,7 +19,8 @@ fr.lock:GetScript("OnClick")(fr.lock)
 check(GC.Settings().locked == false and fr.grip:IsShown(), "padlock click unlocks")
 M.fire("PLAYER_REGEN_DISABLED"); M.combat = true
 check(fr.reset:IsShown() == false, "combat starts: Reset hidden")
-check(fr.proc:GetText() == "Waiting for Windfury...", "fresh headline each fight")
+-- this mock has no C_Secrets and no proc cast seen yet: "none" mode, so the headline promises meter damage, not procs
+check(GC.mode == "none" and fr.proc:GetText() == "Windfury damage after the fight", "fresh headline each fight (none mode)")
 M.fire("UNIT_SPELLCAST_SUCCEEDED", "player", "c1", 16361)
 M.combat = false; M.meter = { total = 10000, rows = { { 6603, 7000 }, { 16361, 3000 } } }
 M.fire("PLAYER_REGEN_ENABLED"); M.advance(5)

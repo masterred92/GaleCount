@@ -195,10 +195,15 @@ function UI.OnProc(p)
   UI.Refresh()
 end
 
+-- Headline before the first proc: in "none" mode no proc will ever show, so say what will.
+function UI.IdleHeadline()
+  return GC.mode == "none" and L["Windfury damage after the fight"] or L["Waiting for Windfury..."]
+end
+
 function UI.OnCombat(inCombat)
   if frame then
     frame.reset:SetShown(not inCombat) -- no Reset button in combat, so a stray click can't wipe the session
-    if inCombat then frame.proc:SetText(L["Waiting for Windfury..."]) end -- a fresh headline for each fight
+    if inCombat then frame.proc:SetText(UI.IdleHeadline()) end -- a fresh headline for each fight
   end
   if inCombat and not ticker then
     ticker = C_Timer.NewTicker(0.5, function() Core.SafeCall("live", UI.RenderLive) end)
@@ -209,12 +214,32 @@ function UI.OnCombat(inCombat)
 end
 
 -- Plain-number view (out of combat): last fight + session, one short line each. Labels gold, numbers white.
+-- "none" mode: no proc counts, only what the game's meter says after the fight. No Windfury row = say so.
+local NOTE_NONE = "|cffaaaaaa" .. L["Procs can't be counted on this client: the game hides them from addons. Windfury damage shows after each fight when the game's meter lists it."] .. "|r"
+function UI.MeterOnlyLines(f, s)
+  local out = {}
+  if f and f.wf then
+    out[#out + 1] = label(L["Fight"]) .. ("%s %s · %s"):format(GC.Short(f.wf), L["damage"], GC.Pct(f.share))
+  elseif f and f.total then
+    out[#out + 1] = label(L["Fight"]) .. L["the game's meter has no separate Windfury row"]
+  elseif f then
+    out[#out + 1] = label(L["Fight"]) .. L["no meter data"]
+  end
+  if (s.wf or 0) > 0 then
+    out[#out + 1] = label(L["Session"]) .. ("%s %s · %s"):format(GC.Short(s.wf), L["damage"], GC.Pct(s.share))
+  end
+  out[#out + 1] = NOTE_NONE
+  return out
+end
+
 function UI.Lines()
   local f, s = GC.lastFight, GC.SessionStats() or {}
   local countOnly = db and db.meterSplits == false
   if not f and (s.procs or 0) == 0 and (s.fights or 0) == 0 and GC.fight.procs == 0 then
+    if GC.mode == "none" then return { L["No fights yet."], NOTE_NONE } end
     return { L["No fights yet."], "|cffaaaaaa" .. L["Fight with Windfury on and the procs show up here."] .. "|r" }
   end
+  if GC.mode == "none" then return UI.MeterOnlyLines(f, s) end
   local out = {}
   if f and f.wf then
     out[#out + 1] = label(L["Fight"]) .. ("%d %s · %s %s · %s"):format(f.procs, procs(f.procs), GC.Short(f.wf), L["damage"], GC.Pct(f.share))
@@ -239,7 +264,7 @@ end
 function UI.Refresh()
   if not frame then return end
   if GC.fight.inCombat then UI.RenderLive() return end
-  if not frame.proc:GetText() or frame.proc:GetText() == "" then frame.proc:SetText(L["Waiting for Windfury..."]) end
+  if not frame.proc:GetText() or frame.proc:GetText() == "" then frame.proc:SetText(UI.IdleHeadline()) end
   frame.lines:SetText(table.concat(UI.Lines(), "\n"))
   local f = GC.lastFight
   local share = f and f.share or (GC.SessionStats() or {}).share
@@ -261,7 +286,8 @@ function UI.RenderLive()
       if not C.IsSecret(id) and GC.PROCS[id] then wfRows = wfRows + 1; wfAmount = sp.totalAmount end
     end
   end
-  local head = label(L["Fight"]) .. ("%d %s · +%d %s"):format(f.procs, procs(f.procs), f.extra, f.extra == 1 and L["swing"] or L["swings"])
+  local head = GC.mode == "none" and ("|cffaaaaaa" .. L["Procs can't be counted on this client."] .. "|r")
+    or label(L["Fight"]) .. ("%d %s · +%d %s"):format(f.procs, procs(f.procs), f.extra, f.extra == 1 and L["swing"] or L["swings"])
   if total ~= nil and AbbreviateNumbers then
     if wfRows == 1 then
       frame.lines:SetFormattedText("%s\n%s%s   %s%s", head, label(L["Windfury"]), AbbreviateNumbers(wfAmount), label(L["You"]), AbbreviateNumbers(total))
