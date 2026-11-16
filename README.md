@@ -1,6 +1,6 @@
 <p align="center"><img src="media/screenshots/mockup.png" alt="Gale Count layout" width="640"></p>
 
-# Gale Count (WoW: Forever) v1.0.1
+# Gale Count (WoW: Forever) v1.0.2
 
 [![Tests](https://github.com/masterred92/GaleCount/actions/workflows/tests.yml/badge.svg)](https://github.com/masterred92/GaleCount/actions/workflows/tests.yml) [![WoW: Forever](https://img.shields.io/badge/WoW%3A%20Forever-Interface%2016001-c8a165)](https://github.com/masterred92/GaleCount/blob/main/GaleCount.toc) [![License: MIT](https://img.shields.io/github/license/masterred92/GaleCount)](https://github.com/masterred92/GaleCount/blob/main/LICENSE)
 
