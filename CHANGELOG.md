@@ -1,7 +1,11 @@
 # Changelog
 
 ## 1.0.2
-- Fixed: Windfury procs were not counted in a real fight (issue #1). In combat the game hides what a buff update contains, so procs went unseen. Gale Count now checks the Windfury proc buff itself on every buff update, which the game still lets addons read in combat, and counts each new one once. Weapon and totem procs, all ranks, on any client language.
+- Fixed: Windfury procs were not counted in a real fight (issue #1). In combat this client hides buff and proc details from addons unless the game marks a spell as always visible, and Gale Count was relying on details it couldn't see.
+- Gale Count now checks what the client allows and picks how to count: from the Windfury buff when the game keeps it visible (a re-proc while the buff is up counts too), otherwise from your own Windfury cast events if the game sends them. Two procs close together both count.
+- If neither is available, the window says plainly that procs can't be counted on this client and shows Windfury damage from the game's damage meter after each fight. If the meter has no separate Windfury line, it says so instead of guessing.
+- This detection follows the game's documented rules for this client and should work here; confirmation in game will come from players. `/gale debug` shows which method is active and what the client allows, which helps with bug reports.
+- UI polish: bigger text, gold labels, padlock button, clearer idle state.
 
 ## 1.0.1
 - `/gc` clashed with the game's guild chat command; use `/gale` (or `/galecount` as a backup). Help text, first-run tip and README updated.

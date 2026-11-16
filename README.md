@@ -14,7 +14,7 @@ A Windfury tracker for Shamans. A small storm-blue box flashes **WINDFURY!** eve
 
 ## Where the numbers come from
 WoW: Forever runs on the modern client, which gives addons **no combat log**, and every single hit's damage reaches addons as a hidden ("secret") value. Gale Count never guesses a number:
-- **Procs** are exact. Each Windfury proc is its own game spell, and the game tells addons when you gain it.
+- **Procs** are counted only when the game lets addons see them. In combat this client hides buff details from addons unless a spell is marked always visible, so Gale Count picks its method at the start of each fight: the Windfury buff if the game keeps it visible, otherwise your own Windfury cast events if the game sends them. If neither is available, the box says procs can't be counted and shows Windfury damage from the game's meter after each fight. `/gale debug` shows which method is active.
 - **Damage** comes from **Blizzard's built-in damage meter**. During combat its numbers are hidden from addon maths, so the box shows them exactly as the game hands them over. Once combat ends they are normal numbers, and Gale Count works out the fight and session totals, share and average.
 - **Biggest single proc is not shown.** The game does not let addons read single hits on this client, so no addon can measure one proc's damage. Average per proc is exact.
 - If the game's meter counts Windfury's extra swings as ordinary Auto Attack (it then has no Windfury line of its own), the box says **"counting procs only"** and shows proc counts without damage. `/gale meter` lists the meter's lines for your last fight so you can see what the game reports.
