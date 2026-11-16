@@ -147,6 +147,7 @@ function UI.Build(database, s)
   reset:SetText(L["Reset session"])
   reset:SetScript("OnClick", function() GC.ResetSession(); Core.Print(L["session reset."]) end)
   frame.reset = reset
+  reset:SetShown(not C.InCombat()) -- a /reload in combat gets no PLAYER_REGEN_DISABLED, so start hidden
 
   local grip = CreateFrame("Button", nil, frame)
   grip:SetSize(14, 14)
