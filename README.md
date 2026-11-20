@@ -4,10 +4,10 @@
 
 [![Tests](https://github.com/masterred92/GaleCount/actions/workflows/tests.yml/badge.svg)](https://github.com/masterred92/GaleCount/actions/workflows/tests.yml) [![WoW: Forever](https://img.shields.io/badge/WoW%3A%20Forever-Interface%2016001-c8a165)](https://github.com/masterred92/GaleCount/blob/main/GaleCount.toc) [![License: MIT](https://img.shields.io/github/license/masterred92/GaleCount)](https://github.com/masterred92/GaleCount/blob/main/LICENSE)
 
-A Windfury tracker for Shamans. A small storm-blue box flashes **WINDFURY!** every time Windfury procs and keeps count. When the fight ends it shows how much damage Windfury did, its share of your damage and the average per proc, taken from the game's own damage meter.
+A Windfury tracker for Shamans. A small storm-blue box counts Windfury procs when the game lets addons see them, and after each fight it shows how much damage Windfury did, its share of your damage and the average per proc, taken from the game's own damage meter. It counts from a never-secret Windfury aura when the game keeps that buff visible, otherwise from your own UNIT_SPELLCAST_SUCCEEDED events, and if neither is available it says so plainly.
 
 ## What it shows
-- **Every proc, live:** the box lights up with `WINDFURY! +2` (Windfury Weapon) or `TOTEM WINDFURY! +1` (Windfury Totem, yours or another Shaman's).
+- **Live procs, when they can be counted:** the box lights up with `WINDFURY! +2` (Windfury Weapon) or `TOTEM WINDFURY! +1` (Windfury Totem, yours or another Shaman's). If neither the aura nor your own cast events are available, the box says procs can't be counted instead of flashing.
 - **This fight:** procs and extra swings; after combat, Windfury damage, Windfury's share of your damage and average damage per proc.
 - **This session:** procs, Windfury damage and share, average per proc and your best fight average. The **Reset session** button starts a new session.
 - **Share bar:** Windfury's share of your damage.
@@ -58,9 +58,9 @@ Move the box by dragging it; resize it with the corner grip. Both stop working w
 
 ## In-game test checklist
 1. The box appears below the middle of the screen, can be dragged and resized, and keeps its place and size after `/reload`. `/gale lock` stops both.
-2. With Windfury Weapon on, fight a mob: the box flashes `WINDFURY! +2` on each proc and the fight count goes up.
-3. In a group with another Shaman's Windfury Totem: `TOTEM WINDFURY! +1` appears on totem procs.
-4. Two procs within 4 seconds play one thunder.
+2. `/gale debug` names the detection method (`aura`, `cast` or `none`). With Windfury Weapon on, fight a mob: when the method is `aura` or `cast`, the box flashes `WINDFURY! +2` on each proc and the fight count goes up; when it is `none`, the box says procs can't be counted and the live count does not go up.
+3. In a group with another Shaman's Windfury Totem, and when procs can be counted: `TOTEM WINDFURY! +1` appears on totem procs.
+4. When procs can be counted, two procs within 4 seconds play one thunder.
 5. After the fight: Windfury damage, share and average per proc appear, or "counting procs only". `/gale meter` lists the meter lines.
 6. Spend talent points mostly in Elemental, Enhancement or Restoration: `/gale theme` names that tree and the box's accent changes.
 7. **Reset session** sets the session line back to 0.
