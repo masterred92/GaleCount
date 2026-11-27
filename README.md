@@ -1,6 +1,6 @@
 <p align="center"><img src="media/screenshots/mockup.png" alt="Gale Count layout" width="640"></p>
 
-# Gale Count (WoW: Forever) v1.0.2
+# Gale Count (WoW: Forever) v1.1.0
 
 [![Tests](https://github.com/masterred92/GaleCount/actions/workflows/tests.yml/badge.svg)](https://github.com/masterred92/GaleCount/actions/workflows/tests.yml) [![WoW: Forever](https://img.shields.io/badge/WoW%3A%20Forever-Interface%2016001-c8a165)](https://github.com/masterred92/GaleCount/blob/main/GaleCount.toc) [![License: MIT](https://img.shields.io/github/license/masterred92/GaleCount)](https://github.com/masterred92/GaleCount/blob/main/LICENSE)
 
@@ -10,7 +10,13 @@ A Windfury tracker for Shamans. A small storm-blue box counts Windfury procs whe
 - **Live procs, when they can be counted:** the box lights up with `WINDFURY! +2` (Windfury Weapon) or `TOTEM WINDFURY! +1` (Windfury Totem, yours or another Shaman's). If neither the aura nor your own cast events are available, the box says procs can't be counted instead of flashing.
 - **This fight:** procs and extra swings; after combat, Windfury damage, Windfury's share of your damage and average damage per proc.
 - **This session:** procs, Windfury damage and share, average per proc and your best fight average. The **Reset session** button starts a new session.
-- **Share bar:** Windfury's share of your damage.
+- **Share bar:** Windfury's share of your damage. When a proc lands (and procs can be counted), it turns into a bright countdown over your streak window: `WINDFURY! 3.2s`, or `WINDFURY! x3 3.2s` when procs chain. Then the share bar comes back.
+
+## Quality of life
+- **Idle fade:** out of combat the box rests at 35% and comes back to full in combat, under the mouse, during a proc window and during `/gale test`. `/gale fade` toggles it (on by default).
+- **Right-click the box** (out of combat) for a quick menu: sound mode, sound file, idle fade, compact mode, locked, click-through when locked, test preview, reset session, reset position. `/gale menu` opens it too. It never opens in combat.
+- **Compact mode:** `/gale compact` shrinks the box to a 60-pixel strip (headline, proc count, padlock, bar). Turning it off brings back your size.
+- **Click-through when locked:** `/gale clickthrough` lets clicks pass through the box while it is locked. The padlock can't be clicked then, so type `/gale unlock` or `/gale clickthrough` to click it again.
 
 ## Where the numbers come from
 WoW: Forever runs on the modern client, which gives addons **no combat log**, and every single hit's damage reaches addons as a hidden ("secret") value. Gale Count never guesses a number:
@@ -47,7 +53,7 @@ Every class has its own entry (Warrior, Paladin, Hunter, Rogue, Priest, Druid to
 
 ## Commands
 Type `/gale` (backup: `/galecount`). `/gc` is the game's own guild chat command, so Gale Count does not use it.
-`/gale show` / `hide` · `lock` / `unlock` · `resetpos` · `scale 0.5-2` · `size <width> <height>` · `reset` (session) · `test` (preview a proc out of combat) · `sound …` · `soundfile …` · `streak <procs> <seconds>` · `theme` (re-check your talents) · `meter` · `debug` · `report`
+`/gale show` / `hide` · `lock` / `unlock` · `resetpos` · `scale 0.5-2` · `size <width> <height>` · `reset` (session) · `test` (preview one proc window out of combat) · `fade` · `compact` · `clickthrough` · `menu` · `sound …` · `soundfile …` · `streak <procs> <seconds>` · `theme` (re-check your talents) · `meter` · `debug` · `report`
 
 Move the box by dragging it; resize it with the corner grip. Both stop working while it is locked.
 
@@ -64,7 +70,10 @@ Move the box by dragging it; resize it with the corner grip. Both stop working w
 5. After the fight: Windfury damage, share and average per proc appear, or "counting procs only". `/gale meter` lists the meter lines.
 6. Spend talent points mostly in Elemental, Enhancement or Restoration: `/gale theme` names that tree and the box's accent changes.
 7. **Reset session** sets the session line back to 0.
-8. No Lua errors and no "action blocked" messages during combat.
+8. Out of combat the box fades to 35% and comes back under the mouse, in combat and during `/gale test` (the bar counts down the streak window). When procs can be counted, each proc turns the bar into the `WINDFURY!` countdown and the share bar returns after it. `/gale fade` turns the fade off.
+9. Right-click the box out of combat: the quick menu opens and each entry works. In combat it does not open.
+10. `/gale compact` gives a slim strip; switching it off brings back your size. With `/gale clickthrough` on and the box locked, clicks go through it; `/gale unlock` makes it clickable again.
+11. No Lua errors and no "action blocked" messages during combat.
 
 ## Licence
 MIT. Written from scratch; no code copied from other addons.

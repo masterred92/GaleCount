@@ -27,6 +27,27 @@ local function frameObj(name)
     if k == "CreateFontString" or k == "CreateTexture" then
       return function() local c = frameObj(); t.kids[#t.kids + 1] = c; return c end end
     if k == "Text" then local c = frameObj(); rawset(t, "Text", c); return c end
+    -- widget state the 1.1.0 tests read back: alpha, mouse, size, bar values and colour, anchors, protection, hooks
+    if k == "SetAlpha" then return function(_, v) t.alpha = v end end
+    if k == "GetAlpha" then return function() return t.alpha or 1 end end
+    if k == "EnableMouse" then return function(_, v) t.mouse = v and true or false end end
+    if k == "IsMouseEnabled" then return function() return t.mouse == true end end
+    if k == "IsMouseOver" then return function() return M.mouseOver == t end end
+    if k == "IsProtected" then return function() return t.protected == true end end
+    if k == "SetSize" then return function(_, w, h) t.width, t.height = w, h end end
+    if k == "SetHeight" then return function(_, h) t.height = h end end
+    if k == "GetWidth" then return function() return t.width or 0 end end
+    if k == "GetHeight" then return function() return t.height or 0 end end
+    if k == "SetResizeBounds" then return function(_, a, b, c, d) t.bounds = { a, b, c, d } end end
+    if k == "SetMinMaxValues" then return function(_, lo, hi) t.minV, t.maxV = lo, hi end end
+    if k == "GetMinMaxValues" then return function() return t.minV, t.maxV end end
+    if k == "SetValue" then return function(_, v) t.value = v end end
+    if k == "GetValue" then return function() return t.value end end
+    if k == "SetStatusBarColor" then return function(_, r, g, b) t.color = { r, g, b } end end
+    if k == "ClearAllPoints" then return function() t.points = {} end end
+    if k == "HookScript" then return function(_, s, fn)
+      local old = t.scripts[s]
+      t.scripts[s] = old and function(...) old(...); fn(...) end or fn end end
     return function() end -- every other widget method is a no-op
   end
   return setmetatable(fr, mt)

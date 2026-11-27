@@ -16,7 +16,7 @@ local GC = {}
 KennyGaleCount = GC
 ns.GC = GC
 
-local SCHEMA = 1
+local SCHEMA = 2 -- 2 = 1.1.0: fade, compact and clickThrough settings
 
 -- Proc spell -> what it is. extra = extra swings granted. Source: SpellName + SpellEffect (effect 19 =
 -- Add Extra Attacks, aura 99 = Mod Melee Attack Power), wago.tools db2, build 1.60.1.70862.
@@ -41,10 +41,25 @@ GC.SOUND_MODES = { streak = true, every = true, record = true, off = true }
 GC.DEFAULTS = {
   shown = true, locked = false, scale = 1, width = 240, height = 150,
   sound = "streak", soundFile = "theme", streakProcs = 2, streakSeconds = 4,
+  fade = true,          -- 1.1.0: out of combat the box rests at 35% alpha (full in combat, on hover, during a proc window or the test)
+  compact = false,      -- 1.1.0: one slim strip (headline, proc count, bar); width and height above stay the full size
+  clickThrough = false, -- 1.1.0: while locked, clicks pass through the box (/gale unlock or /gale clickthrough gives them back)
 }
+GC.BOOL_SETTINGS = { "shown", "locked", "fade", "compact", "clickThrough" }
 
 local db, settings
 local migrations = {} -- schema 1 is the first release
+-- 1.0.x -> 1.1.0: settings keep everything already saved (spot, size, scale, sounds, streak); the three new switches
+-- start at their defaults. Anything that isn't a true/false where one belongs (a hand-edited file) is dropped, so the
+-- default applies.
+migrations[2] = function(d)
+  d.settings = type(d.settings) == "table" and d.settings or {}
+  for _, k in ipairs(GC.BOOL_SETTINGS) do
+    if d.settings[k] ~= nil and type(d.settings[k]) ~= "boolean" then d.settings[k] = nil end
+  end
+  return d
+end
+GC.migrations, GC.SCHEMA = migrations, SCHEMA
 
 local function now() return C.Clock() end
 
@@ -475,7 +490,9 @@ function GC.StateLines()
   local f = GC.lastFight
   local out = {
     "settings: sound=" .. tostring(settings and settings.sound) .. " file=" .. tostring(settings and settings.soundFile)
-      .. " streak=" .. tostring(settings and settings.streakProcs) .. "/" .. tostring(settings and settings.streakSeconds) .. "s",
+      .. " streak=" .. tostring(settings and settings.streakProcs) .. "/" .. tostring(settings and settings.streakSeconds) .. "s"
+      .. " fade=" .. tostring(settings and settings.fade) .. " compact=" .. tostring(settings and settings.compact)
+      .. " clickthrough=" .. tostring(settings and settings.clickThrough),
     "damage meter available: " .. tostring(avail) .. (why and why ~= "" and (" (" .. tostring(why) .. ")") or ""),
     "theme: " .. tostring(GC.theme and GC.theme.class) .. " / " .. tostring(GC.theme and GC.theme.tree or "class default"),
     "meter lists Windfury separately: " .. tostring(db and db.meterSplits),

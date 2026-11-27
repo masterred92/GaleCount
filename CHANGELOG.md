@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+- **Idle fade:** out of combat the box rests at 35% alpha. It comes back to full in combat (also after a `/reload` in combat), under the mouse (including the padlock, resize grip and Reset button), during a proc flash or proc window and during `/gale test`. `/gale fade` turns it off or on at once. On by default.
+- **Live Windfury drain bar:** when procs can be counted (`aura` or `cast` detection) and a proc lands, the bar turns into a bright accent-coloured countdown over your streak window (`/gale streak`, default 4 seconds): `WINDFURY! 3.2s`, or `WINDFURY! x3 3.2s` once procs chain inside the window (each proc restarts it). When the window runs out the Windfury share bar and the theme colour come back. When procs can't be counted (`none`), the bar never runs; nothing is guessed.
+- **Right-click quick menu** (out of combat; also `/gale menu`): sound mode, sound file, idle fade, compact mode, locked, click-through when locked, test preview, reset session and reset position. Uses Blizzard's own menu; it doesn't open in combat and entries clicked after combat starts do nothing.
+- **Compact mode** (`/gale compact`, off by default): a slim 60-pixel strip with the headline, the proc count, the padlock and the bar. Switching back restores your saved size; `/gale size` while compact changes the saved full size.
+- **Click-through when locked** (`/gale clickthrough`, off by default): while the box is locked, clicks pass through it (box, padlock and Reset button). `/gale unlock` or `/gale clickthrough` makes it clickable again; the help, the padlock tooltip and the lock message say so.
+- `/gale test` is now a full preview of one proc window (flash, headline, drain bar, sound); it stops when combat starts or a real proc lands.
+- Settings from 1.0.x (position, size, scale, lock, sounds, streak) carry over; the new switches start at their defaults.
+
 ## 1.0.2
 - Fixed: Windfury procs were not counted in a real fight (issue #1). In combat this client hides buff and proc details from addons unless the game marks a spell as always visible, and Gale Count was relying on details it couldn't see.
 - Gale Count now checks what the client allows and picks how to count: from the Windfury buff when the game keeps it visible (a re-proc while the buff is up counts too), otherwise from your own Windfury cast events if the game sends them. Two procs close together both count.
